@@ -1,54 +1,32 @@
-from core.scenario import Scenario
-from core.utils import get_public_ip
+from core.base.scenario import Scenario
 
-class CloudvpnMisroute(Scenario):
-    def generate(self):
-        """
-        Deploys the scenario using Terraform.
-        Creates:
-        - Public S3 bucket with leaked VPN config
-        - AWS Client VPN Endpoint
-        - EC2 instances (admin-server)
-        - S3 bucket with flag
-        - Security group allowing VPN-only SSH access
-        """
-        self.run_terraform_apply()
+class CloudVPNMisroute(Scenario):
+    @staticmethod
+    def summary():
+        return "Leaked VPN credentials allow a user to pivot into a private AWS network, compromise EC2 IAM credentials, and access a restricted S3 bucket via a VPC endpoint."
 
     def start(self):
-        """
-        Provides initial scenario instructions to the user.
-        """
-        print("\n[💡] Scenario: CloudVPN-misroute")
-        print("================================================================================")
-        print("[*] A misconfigured AWS Client VPN has leaked its configuration in a public S3 bucket.")
-        print("[*] Your mission is to:")
-        print("    1. Retrieve the VPN configuration from the public S3 bucket.")
-        print("    2. Connect to the VPN and access the internal VPC.")
-        print("    3. Locate the internal admin-server and access it via SSH.")
-        print("    4. Extract IAM credentials from the EC2 metadata service.")
-        print("    5. Use the credentials to download a flag from a private S3 bucket.")
-        print("================================================================================\n")
+        return (
+            "An S3 bucket has been found containing what appear to be VPN configuration files.\n"
+            "Your objective is to gain access to the internal network, identify and exploit further misconfigurations, and retrieve a flag from a private S3 bucket."
+        )
 
     def exploit(self):
-        """
-        (Optional) Step-by-step manual attack guidance.
-        """
-        print("\n[🚩] Exploit Instructions:")
-        print("================================================================================")
-        print("[1] Find and download leaked VPN config from the public S3 bucket.")
-        print("[2] Use the `.ovpn` and `credentials.txt` to connect to the AWS VPN endpoint.")
-        print("[3] Once inside, scan the VPC network to find the admin-server (hint: 10.0.1.X).")
-        print("[4] SSH into the server (you are allowed by SG via VPN IP).")
-        print("[5] Run:")
-        print("       curl http://169.254.169.254/latest/meta-data/iam/security-credentials/")
-        print("       curl http://169.254.169.254/latest/meta-data/iam/security-credentials/<role>")
-        print("[6] Use the keys to:")
-        print("       aws s3 cp s3://cg-secret-flag/flag.txt . --region <region>")
-        print("[7] Done!")
-        print("================================================================================\n")
+        return (
+            "1. Discover the leaked `client.ovpn` and `credentials.txt` in the public S3 bucket.\n"
+            "2. Use the OpenVPN configuration to connect to the AWS VPN endpoint.\n"
+            "3. Once inside the private network, scan for internal resources and locate the EC2 instance.\n"
+            "4. SSH into the EC2 instance using internal access (security group allows VPN source).\n"
+            "5. Use the EC2 metadata service to extract temporary IAM credentials.\n"
+            "6. Attempt to access the S3 bucket with the credentials, receive an `AccessDenied` error.\n"
+            "7. Realize that the IAM and bucket policies require access from a specific VPC endpoint.\n"
+            "8. While staying connected to the VPN (within the VPC), retry the S3 access.\n"
+            "9. Successfully retrieve the `flag.txt` file."
+        )
 
-    def destroy(self):
-        """
-        Destroys the scenario and all deployed resources.
-        """
-        self.run_terraform_destroy()
+    def finish(self):
+        return (
+            "You’ve successfully used a leaked VPN configuration to gain internal access,\n"
+            "pivoted to an EC2 instance, bypassed IAM and S3 policy restrictions via a VPC endpoint,\n"
+            "and exfiltrated a protected flag from a private S3 bucket."
+        )
