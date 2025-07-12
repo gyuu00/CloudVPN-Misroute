@@ -1,58 +1,72 @@
-# CloudVPN-misroute
+# CloudVPN-Misroute
 
-## Summary
+## Scenario: VPN Misconfiguration with VPC Peering and Metadata Exploitation
 
-In this scenario, an attacker leverages leaked VPN credentials to access a private AWS VPC. From inside the network, the attacker pivots into an EC2 instance, extracts IAM credentials, and bypasses conditional IAM and S3 bucket policies by staying within the allowed network path, ultimately exfiltrating a protected flag from a private S3 bucket.
-
----
-
-## Cloud Concepts Covered
-
-- AWS Client VPN
-- Public S3 bucket misconfiguration
-- Security group bypass via internal network
-- EC2 metadata service abuse
-- IAM credential compromise
-- IAM conditional policy (aws:sourceVpce)
-- VPC endpoint-based S3 access restriction
+This CloudGoat scenario demonstrates how an attacker can abuse a misconfigured AWS Client VPN endpoint to pivot into a private VPC, and then laterally move into a peered VPC. There, the attacker exploits EC2 metadata exposure to gain elevated IAM privileges and access sensitive data in an S3 bucket.
 
 ---
 
-## Scenario Flow
+## Attack Narrative
 
-1. An S3 bucket containing a `.ovpn` configuration file and `credentials.txt` is publicly exposed.
-2. The attacker uses these files to connect to an AWS Client VPN endpoint.
-3. Once inside the VPN, the attacker scans the network and discovers an EC2 instance.
-4. The attacker connects to the EC2 instance via SSH (allowed only from internal VPN clients).
-5. Using the EC2 metadata service, the attacker retrieves IAM credentials assigned to the instance.
-6. The attacker attempts to access a private S3 bucket using the stolen credentials but is denied.
-7. After inspecting the policies, the attacker realizes access is restricted to a specific VPC endpoint.
-8. By maintaining VPN connectivity (i.e., staying in-network), the attacker retries the S3 access and successfully retrieves `flag.txt`.
+1. **VPN Credentials Leak**  
+   The attacker obtains `.ovpn` and credential files, allowing VPN access to *VPC-A*.
 
----
+2. **Internal Reconnaissance**  
+   After VPN connection, the attacker performs internal scanning inside *VPC-A*. Nothing valuable is found.
 
-## Goal
+3. **VPC Peering Discovery**  
+   The attacker discovers that *VPC-A* is peered with another VPC (*VPC-B*), and can reach certain internal resources.
 
-Download `flag.txt` from the private S3 bucket by meeting all security conditions using the compromised IAM credentials.
+4. **Pivot to Peered VPC**  
+   Using misconfigured security group rules, the attacker pivots into *VPC-B*.
 
----
+5. **EC2 Metadata Exploitation**  
+   In *VPC-B*, the attacker accesses an EC2 instance with a role that grants read access to a restricted S3 bucket.
 
-## Difficulty
-
-🟧 Medium
+6. **Sensitive Data Exfiltration**  
+   Using the IAM role credentials, the attacker downloads `flag.txt` from the private S3 bucket.
 
 ---
 
-## Detection & Prevention
+## Learning Objectives
 
-- Monitor public S3 buckets for sensitive configuration files such as `.ovpn` or credential stores.
-- Restrict access to EC2 metadata using IMDSv2 and firewall rules.
-- Use conditional IAM policies in combination with VPC endpoints to limit credential abuse.
-- Enable logging for VPN connections, S3 access, and EC2 metadata usage.
+- Understand the risks of weak VPN access control.
+- Discover how VPC Peering can lead to lateral movement if not properly restricted.
+- Learn to secure EC2 instance metadata and IAM roles.
+- Explore S3 bucket permissions and isolation techniques.
 
 ---
 
-## Tags
+## Scenario Setup
 
-`vpn`, `s3`, `iam`, `metadata`, `vpc-endpoint`, `cloud`, `security-group`, `aws`
+| Resource     | Description |
+|--------------|-------------|
+| VPC-A        | Entry point via VPN |
+| VPC-B        | Target network with exploitable EC2 |
+| EC2 Instances| Used for pivot and metadata access |
+| VPN Endpoint | Misconfigured access via leaked credentials |
+| S3 Bucket    | Stores the flag, restricted by IAM policy |
+| VPC Peering  | Connects VPC-A and VPC-B |
 
+---
+
+## Files Provided
+
+- `client.ovpn` – Dummy OpenVPN config
+- `credentials.txt` – VPN username and password
+
+---
+
+## Completion Criteria
+
+✅ Successful download of `flag.txt` from the private S3 bucket  
+✅ Demonstration of VPC Peering abuse and metadata exploitation
+
+---
+
+## Cleanup
+
+To destroy the environment:
+
+```bash
+cloudgoat destroy CloudVPN-Misroute
