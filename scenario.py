@@ -1,18 +1,38 @@
-from core.base.scenario import Scenario as BaseScenario
+from core.base.scenario import Scenario
 
-class Scenario(BaseScenario):
+class CloudVPNMisroute(Scenario):
+
     @staticmethod
     def summary():
-        return "Leaked VPN credentials allow a user to pivot into a private AWS network, compromise EC2 IAM credentials, and access a restricted S3 bucket via a VPC endpoint."
+        return (
+            "Leaked VPN credentials allow an attacker to access VPC-A via a misconfigured AWS Client VPN. "
+            "From there, they discover a peered VPC (VPC-B) and pivot into it via misconfigured security group rules. "
+            "Inside VPC-B, the attacker exploits EC2 instance metadata to gain IAM credentials and download sensitive data from a private S3 bucket."
+        )
 
     def start(self):
         return (
-            "An S3 bucket has been found containing what appear to be VPN configuration files.\n"
-            "Use the credentials to access the VPN and explore the internal network."
+            "You’ve discovered a leaked set of VPN credentials and configuration files.\n"
+            "They appear to grant access to an AWS environment via a Client VPN endpoint.\n"
+            "Your mission is to explore the internal network and exfiltrate sensitive data, if possible.\n"
         )
 
     def finish(self):
         return (
-            "The attacker successfully pivoted into the private cloud network, bypassed a restrictive security group,\n"
-            "extracted IAM credentials from EC2 metadata, and accessed sensitive S3 data."
+            "You’ve successfully obtained IAM credentials from the EC2 metadata service in VPC-B, "
+            "and used them to download the flag from a private S3 bucket.\n"
+            "This illustrates the risk of combining VPN misconfigurations, overly permissive VPC peering, "
+            "and EC2 metadata exposure."
         )
+
+    def create(self):
+        return {
+            "command": "terraform init && terraform apply --auto-approve",
+            "cwd": "scenarios/CloudVPN-Misroute/terraform"
+        }
+
+    def destroy(self):
+        return {
+            "command": "terraform destroy --auto-approve",
+            "cwd": "scenarios/CloudVPN-Misroute/terraform"
+        }
