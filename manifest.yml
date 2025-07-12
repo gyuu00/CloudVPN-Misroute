@@ -1,0 +1,14 @@
+name: cloudvpn-misroute
+platform: aws
+description: >
+  Simulates an AWS Client VPN misconfiguration that allows an attacker to pivot between peered VPCs and access internal resources.
+goal: >
+  Gain access to an internal EC2 instance in a different VPC through VPN access and lateral movement via VPC Peering.
+services:
+  - ec2
+  - client-vpn
+  - vpc
+  - iam
+  - s3
+help: >
+  Use VPN credentials to connect into the initial VPC, then discover and exploit VPC peering configuration to reach internal resources in another VPC.
