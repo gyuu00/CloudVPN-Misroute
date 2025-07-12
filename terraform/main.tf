@@ -135,3 +135,82 @@ resource "aws_s3_bucket_object" "ovpn_file" {
   source = "${path.module}/files/client.ovpn"
   content_type = "text/plain"
 }
+
+
+
+resource "aws_iam_policy" "s3_read_policy" {
+  name        = "${var.project_prefix}-s3-read"
+  description = "Allows read access to specific S3 bucket"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ],
+        Effect   = "Allow",
+        Resource = [
+          "${aws_s3_bucket.leak_bucket.arn}",
+          "${aws_s3_bucket.leak_bucket.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+
+resource "aws_iam_role" "ec2_role" {
+  name = "${var.project_prefix}-ec2-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+
+
+
+resource "aws_iam_role_policy_attachment" "attach_s3_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.s3_read_policy.arn
+}
+
+
+
+
+
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name = "${var.project_prefix}-profile"
+  role = aws_iam_role.ec2_role.name
+}
+
+# 기존 ec2_b 리소스 수정
+resource "aws_instance" "ec2_b" {
+  ami                    = "ami-0c02fb55956c7d316"
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.subnet_b.id
+  vpc_security_group_ids = [aws_security_group.sg_b.id]
+  key_name               = "cloudgoat-key"
+  iam_instance_profile   = aws_iam_instance_profile.ec2_instance_profile.name
+
+  tags = {
+    Name = "${var.project_prefix}-ec2-b"
+  }
+}
+
+
+resource "aws_s3_bucket_object" "flag" {
+  bucket = aws_s3_bucket.leak_bucket.id
+  key    = "flag.txt"
+  content = "FLAG-THIS-IS-YOUR-TREASURE"
+  content_type = "text/plain"
+}
