@@ -82,6 +82,19 @@ resource "aws_security_group" "sg_b" {
   }
 }
 
+resource "aws_instance" "ec2_b" {
+  ami                    = "ami-0c02fb55956c7d316"
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.subnet_b.id
+  vpc_security_group_ids = [aws_security_group.sg_b.id]
+  key_name               = "cloudgoat-key"
+
+  tags = {
+    Name = "${var.project_prefix}-ec2-b"
+  }
+}
+
+
 # VPC Peering 연결
 resource "aws_vpc_peering_connection" "peering" {
   vpc_id        = aws_vpc.vpc_a.id
@@ -182,7 +195,7 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
 }
 
 # 기존 ec2_b 리소스 수정
-resource "aws_instance" "ec2_b" {
+resource "aws_instance" "ec2_b_main" {
   ami                    = "ami-0c02fb55956c7d316"
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.subnet_b.id
