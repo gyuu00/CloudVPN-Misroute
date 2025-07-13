@@ -37,7 +37,7 @@ resource "aws_security_group" "sg_a" {
 }
 
 resource "aws_instance" "ec2_a" {
-  ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2
+  ami                    = "ami-0c02fb55956c7d316"
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.subnet_a.id
   vpc_security_group_ids = [aws_security_group.sg_a.id]
@@ -88,12 +88,12 @@ resource "aws_instance" "ec2_b" {
   subnet_id              = aws_subnet.subnet_b.id
   vpc_security_group_ids = [aws_security_group.sg_b.id]
   key_name               = "cloudgoat-key"
+  iam_instance_profile   = aws_iam_instance_profile.ec2_instance_profile.name
 
   tags = {
     Name = "${var.project_prefix}-ec2-b"
   }
 }
-
 
 # VPC Peering 연결
 resource "aws_vpc_peering_connection" "peering" {
@@ -107,14 +107,14 @@ resource "aws_vpc_peering_connection" "peering" {
 }
 
 resource "aws_route" "route_a_to_b" {
-  route_table_id         = aws_vpc.vpc_a.default_route_table_id
-  destination_cidr_block = aws_vpc.vpc_b.cidr_block
+  route_table_id             = aws_vpc.vpc_a.default_route_table_id
+  destination_cidr_block     = aws_vpc.vpc_b.cidr_block
   vpc_peering_connection_id = aws_vpc_peering_connection.peering.id
 }
 
 resource "aws_route" "route_b_to_a" {
-  route_table_id         = aws_vpc.vpc_b.default_route_table_id
-  destination_cidr_block = aws_vpc.vpc_a.cidr_block
+  route_table_id             = aws_vpc.vpc_b.default_route_table_id
+  destination_cidr_block     = aws_vpc.vpc_a.cidr_block
   vpc_peering_connection_id = aws_vpc_peering_connection.peering.id
 }
 
@@ -124,21 +124,27 @@ resource "aws_s3_bucket" "leak_bucket" {
 }
 
 resource "aws_s3_bucket_object" "credentials_file" {
-  bucket = aws_s3_bucket.leak_bucket.id
-  key    = "credentials.txt"
-  source = "${path.module}/files/credentials.txt"
+  bucket       = aws_s3_bucket.leak_bucket.id
+  key          = "credentials.txt"
+  source       = "${path.module}/files/credentials.txt"
   content_type = "text/plain"
 }
 
 resource "aws_s3_bucket_object" "ovpn_file" {
-  bucket = aws_s3_bucket.leak_bucket.id
-  key    = "client.ovpn"
-  source = "${path.module}/files/client.ovpn"
+  bucket       = aws_s3_bucket.leak_bucket.id
+  key          = "client.ovpn"
+  source       = "${path.module}/files/client.ovpn"
   content_type = "text/plain"
 }
 
+resource "aws_s3_bucket_object" "flag" {
+  bucket       = aws_s3_bucket.leak_bucket.id
+  key          = "flag.txt"
+  content      = "FLAG-THIS-IS-YOUR-TREASURE"
+  content_type = "text/plain"
+}
 
-
+# IAM Policy and Role for EC2 to access S3
 resource "aws_iam_policy" "s3_read_policy" {
   name        = "${var.project_prefix}-s3-read"
   description = "Allows read access to specific S3 bucket"
@@ -160,7 +166,6 @@ resource "aws_iam_policy" "s3_read_policy" {
   })
 }
 
-
 resource "aws_iam_role" "ec2_role" {
   name = "${var.project_prefix}-ec2-role"
   assume_role_policy = jsonencode({
@@ -177,41 +182,12 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
-
-
-
 resource "aws_iam_role_policy_attachment" "attach_s3_policy" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = aws_iam_policy.s3_read_policy.arn
 }
 
-
-
-
-
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "${var.project_prefix}-profile"
   role = aws_iam_role.ec2_role.name
-}
-
-# 기존 ec2_b 리소스 수정
-resource "aws_instance" "ec2_b_main" {
-  ami                    = "ami-0c02fb55956c7d316"
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.subnet_b.id
-  vpc_security_group_ids = [aws_security_group.sg_b.id]
-  key_name               = "cloudgoat-key"
-  iam_instance_profile   = aws_iam_instance_profile.ec2_instance_profile.name
-
-  tags = {
-    Name = "${var.project_prefix}-ec2-b"
-  }
-}
-
-
-resource "aws_s3_bucket_object" "flag" {
-  bucket = aws_s3_bucket.leak_bucket.id
-  key    = "flag.txt"
-  content = "FLAG-THIS-IS-YOUR-TREASURE"
-  content_type = "text/plain"
 }
