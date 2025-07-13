@@ -1,6 +1,8 @@
 from core.base.scenario import Scenario
 
-class CloudVPNMisroute(Scenario):
+class cloudvpnmisroute(Scenario):
+
+    name = "cloudvpnmisroute"
 
     @staticmethod
     def summary():
@@ -28,11 +30,11 @@ class CloudVPNMisroute(Scenario):
     def create(self):
         return {
             "command": "terraform init && terraform apply --auto-approve",
-            "cwd": "scenarios/CloudVPN-Misroute/terraform"
+            "cwd": "scenarios/cloudvpnmisroute/terraform"
         }
 
     def destroy(self):
         return {
             "command": "terraform destroy --auto-approve",
-            "cwd": "scenarios/CloudVPN-Misroute/terraform"
+            "cwd": "scenarios/cloudvpnmisroute/terraform"
         }
