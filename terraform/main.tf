@@ -83,17 +83,53 @@ resource "aws_security_group" "sg_b" {
 }
 
 resource "aws_instance" "ec2_b" {
-  ami                    = "ami-0c02fb55956c7d316"
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.subnet_b.id
-  vpc_security_group_ids = [aws_security_group.sg_b.id]
-  key_name               = "cloudgoat-key"
-  iam_instance_profile   = aws_iam_instance_profile.ec2_instance_profile.name
+  ami                         = "ami-0c55b159cbfafe1f0" # Amazon Linux 2 (us-east-1 기준, 필요 시 region에 맞게 변경)
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.ec2_b_sg.id]
+  key_name                    = var.key_name
 
   tags = {
-    Name = "${var.project_prefix}-ec2-b"
+    Name = "ec2-b"
+  }
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum install -y httpd
+              echo "Hello from EC2-B" > /var/www/html/index.html
+              systemctl start httpd
+              systemctl enable httpd
+              EOF
+}
+
+resource "aws_security_group" "ec2_b_sg" {
+  name        = "ec2-b-sg"
+  description = "Allow HTTP and SSH"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
 
 # VPC Peering 연결
 resource "aws_vpc_peering_connection" "peering" {
